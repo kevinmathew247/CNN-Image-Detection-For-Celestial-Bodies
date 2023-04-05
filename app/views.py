@@ -10,7 +10,7 @@ from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed
 from wtforms import StringField, validators
 
-from app import app
+from app.__init__ import app
 from hub.examples.image_retraining.label_image import get_labels, wiki
 from hub.examples.image_retraining.reverse_image_search import reverseImageSearch
 
