@@ -56,34 +56,34 @@ def index():
     form = SelectImageForm()
     if form.validate_on_submit():
         upload()
-        # if request.files.get(form.image_file.name):
-        #     # from file
-        #     imageBytes = request.files[form.image_file.name].read()
-        #     im = Image.open(BytesIO(imageBytes))
-        #     # cant save RGBA as JPEG
-        #     im_resize=im.convert('RGB')
-        #     # resize using PIL
-        #     max_width = 1000
-        #     if(im.size[0]>max_width):
-        #         im_resize=im.resize((max_width,int(max_width/im.size[0]*im.size[1])))
-        #     buf = BytesIO()
-        #     filext = request.files[form.image_file.name].filename.split('.')[-1].upper()
-        #     if(filext=='JPG'):
-        #         filext='JPEG'
-        #     im_resize.save(buf, format=filext)
-        #     # get back bytes
-        #     imageBytes = buf.getvalue()
-        #     print("using form")
+        if request.files.get(form.image_file.name):
+            # from file
+            imageBytes = request.files[form.image_file.name].read()
+            im = Image.open(BytesIO(imageBytes))
+            # cant save RGBA as JPEG
+            im_resize=im.convert('RGB')
+            # resize using PIL
+            max_width = 1000
+            if(im.size[0]>max_width):
+                im_resize=im.resize((max_width,int(max_width/im.size[0]*im.size[1])))
+            buf = BytesIO()
+            # filext = request.files[form.image_file.name].filename.split('.')[-1].upper()
+            # if(filext=='JPG'):
+            #     filext='JPEG'
+            # im_resize.save(buf, format=filext)
+            # get back bytes
+            imageBytes = buf.getvalue()
+            print("using form")
 
-        # elif form.image_url.data:
-        #     # from url
-        #     response = requests.get(form.image_url.data)
-        #     imageBytes = BytesIO(response.content).read()
-        #     print("using url")
-        # else:
-        #     # empty form
-        #     return render_template("index.html", form=form)
-    # print(form.errors)
+        elif form.image_url.data:
+            # from url
+            response = requests.get(form.image_url.data)
+            imageBytes = BytesIO(response.content).read()
+            print("using url")
+        else:
+            # empty form
+            return render_template("index.html", form=form)
+    print(form.errors)
 
     return render_template("index.html", form=form)
 
