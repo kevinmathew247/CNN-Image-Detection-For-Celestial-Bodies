@@ -2,8 +2,6 @@ import os
 from io import BytesIO
 from base64 import b64encode
 
-import requests
-from PIL import Image
 from flask import render_template, request, redirect, url_for, send_from_directory
 from flask_uploads import UploadSet, IMAGES, configure_uploads
 from flask_wtf import FlaskForm
