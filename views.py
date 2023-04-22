@@ -14,6 +14,7 @@ from keras.utils import load_img, img_to_array
 from app.__init__ import app
 from hub.examples.image_retraining.label_image import get_labels, wiki
 from hub.examples.image_retraining.reverse_image_search import reverseImageSearch
+import tensorflow as tf
 
 # no secret key set yet
 SECRET_KEY = os.urandom(32)
@@ -95,32 +96,41 @@ def about():
     return render_template("about.html")
 
 
-
+# Route for displaying the prediction results
 @app.route("/result")
 def result():
-    cwd = os.path.join(app.root_path, "..", "hub", "examples", "image_retraining")
     try:
-        celestial_object, labels = get_labels(imageBytes, cwd)
-    except NameError:
-        return render_template("error.html", detail="You are not supposed to be here.")
+        with open(os.path.join(APP_ROOT, 'uploads', 'prediction.txt'), 'r') as file:
+            labels = file.read().splitlines()
+        title, properties, description = wiki(labels[0], APP_ROOT)
+        with open(os.path.join(APP_ROOT, 'uploads', 'image.png'), 'rb') as file:
+            imageBytes = file.read()
+            image = b64encode(imageBytes).decode("utf-8")
     except Exception as e:
         return render_template("error.html", detail=str(e))
-    title, properties, description = wiki(celestial_object, cwd)
-
     return render_template(
         "result.html",
-        image=b64encode(imageBytes).decode("utf-8"),
+        image=image,
         labels=labels,
         title=title,
         description=description,
         properties=properties,
     )
 
-
+# Route for handling Google reverse image search
 @app.route("/redirectToGoogle")
 def redirectToGoogle():
+    with open(os.path.join(APP_ROOT, 'uploads', 'image.png'), 'rb') as file:
+        imageBytes = file.read()
     searchUrl = reverseImageSearch(imageBytes)
     return redirect(searchUrl, 302)
+
+
+
+# @app.route("/redirectToGoogle")
+# def redirectToGoogle():
+#     searchUrl = reverseImageSearch(imageBytes)
+#     return redirect(searchUrl, 302)
 
 @app.route("/predict")
 def preprocess_image(path):
@@ -138,34 +148,38 @@ def predict_answer():
     # Get a list of all the files in the directory
     files = os.listdir(test_upload_dir)
 
-    # Get the first file in the directory
+    #Get the first file in the directory
     first_file = files[0]
 
     # Print the first file
-    print(first_file)
+    # print(first_file)
     first_file_path = os.path.join(test_upload_dir, first_file)
-    print(first_file_path)
+    # print(first_file_path)
+
+    # preprocess the image
+    img = tf.keras.preprocessing.image.load_img(
+        first_file_path, target_size=(256, 256)
+    )
+    img_array = tf.keras.preprocessing.image.img_to_array(img)
+    img_array = tf.expand_dims(img_array, 0) # add a batch dimension
     
-    test_preprocessed_upload_images = preprocess_image(first_file_path)
+    # normalize the image
+    img_array = img_array / 255.0
+    
+    # Load the trained model
+    model = keras.models.load_model('/Users/krishna/Desktop/CNN-Image-Detection-For-Celestial-Bodies-main/hub/examples/image_retraining/CNN_Model.h5')
 
-    image_path = first_file_path
-
-    # Load the image using the imread() function from matplotlib.image
-    img = mpimg.imread(image_path)
-
-    # Display the image using the imshow() function from matplotlib.pyplot
+    # make predictions
+    predictions = model.predict(img_array)
+    
+    # get the predicted class name
+    class_idx = np.argmax(predictions[0])
+    class_name = image_list[class_idx]
+    
+    # display the image and predicted class name
     plt.imshow(img)
-
-    # Show the plot
+    plt.title(class_name)
     plt.show()
-    os.remove(first_file_path)
-
-    model = keras.models.load_model('CNN_Model.h5')
-    array1 = model.predict(test_preprocessed_upload_images, batch_size=1, verbose=1)
-    answer1 = np.argmax(array1, axis=1)
-    print("The predicted image is that of",image_list[int(answer1)])
-
-
 
 test_images_dir = '/Users/krishna/Desktop/CNN-Image-Detection-For-Celestial-Bodies-main/hub/examples/image_retraining/lets_test/'
 test_df = pd.read_csv('/Users/krishna/Desktop/CNN-Image-Detection-For-Celestial-Bodies-main/hub/examples/image_retraining/test.csv')
