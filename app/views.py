@@ -1,13 +1,16 @@
 import os
 from io import BytesIO
 from base64 import b64encode
-
+import pandas as pd
 from flask import render_template, request, redirect, url_for, send_from_directory
 from flask_uploads import UploadSet, IMAGES, configure_uploads
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed
 from wtforms import StringField, validators
-
+import matplotlib as plt
+import keras
+import numpy as np
+from keras.utils import load_img, img_to_array
 from app.__init__ import app
 from hub.examples.image_retraining.label_image import get_labels, wiki
 from hub.examples.image_retraining.reverse_image_search import reverseImageSearch
@@ -44,7 +47,8 @@ def upload():
         form = SelectImageForm()
         filename = photos.save (form.image_file.data)
         file_url = url_for('get_file', filename=filename)
-        return render_template ('index.html', form=form, file_url=file_url)
+        predict_answer()
+        #return render_template ('index.html', form=form, file_url=file_url)
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -117,3 +121,59 @@ def result():
 def redirectToGoogle():
     searchUrl = reverseImageSearch(imageBytes)
     return redirect(searchUrl, 302)
+
+@app.route("/predict")
+def predict_answer():
+    import matplotlib.image as mpimg
+    # Read Test Images Dir and their labels
+    test_upload_dir = 'D:/MSc Group Project/CNN-Image-Detection-For-Celestial-Bodies/app/uploads'
+    image_list = ['asteroids', 'earth','elliptical', 'jupiter', 'mars', 'mercury','moon', 'neptune', 'saturn', 'spiral', 'uranus', 'venus']
+
+    # Get a list of all the files in the directory
+    files = os.listdir(test_upload_dir)
+
+    # Get the first file in the directory
+    first_file = files[0]
+
+    # Print the first file
+    print(first_file)
+    first_file_path = os.path.join(test_upload_dir, first_file)
+    print(first_file_path)
+    test_preprocessed_upload_images = preprocess_image(first_file_path)
+
+    image_path = first_file_path
+
+    # Load the image using the imread() function from matplotlib.image
+    img = mpimg.imread(image_path)
+
+    # Display the image using the imshow() function from matplotlib.pyplot
+    plt.imshow(img)
+
+    # Show the plot
+    plt.show()
+    os.remove(first_file_path)
+
+    model = keras.models.load_model('CNN_Model.h5')
+    array1 = model.predict(test_preprocessed_upload_images, batch_size=1, verbose=1)
+    answer1 = np.argmax(array1, axis=1)
+    print("The predicted image is that of",image_list[int(answer1)])
+
+
+
+test_images_dir = '/Users/kevinmathew/Documents/UoL CNN/hub/examples/image_retraining/lets_test/'
+test_df = pd.read_csv('/Users/kevinmathew/Documents/UoL CNN/hub/examples/image_retraining/test.csv')
+
+# put them in a list
+test_dfToList = test_df['Image_id'].tolist()
+test_ids = [str(item) for item in test_dfToList]
+
+test_images = [test_images_dir+item for item in test_ids]
+test_preprocessed_images = np.vstack([preprocess_image(fn) for fn in test_images])
+np.save('/Users/kevinmathew/Documents/UoL CNN/hub/examples/image_retraining/test_preproc_CNN.npy', test_preprocessed_images)
+
+def preprocess_image(path):
+    img = load_img(path, target_size = (256, 256))
+    a = img_to_array(img)
+    a = np.expand_dims(a, axis = 0)
+    a /= 255.
+    return a
