@@ -3,13 +3,9 @@ import warnings
 import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.image import imread
-import pathlib
 import tensorflow as tf
 from keras.optimizers import Adam
 from keras.preprocessing.image import ImageDataGenerator
-from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
-from keras.models import Sequential
-from keras.callbacks import EarlyStopping, ModelCheckpoint
 
 warnings.filterwarnings('ignore')
 # Get all the paths
