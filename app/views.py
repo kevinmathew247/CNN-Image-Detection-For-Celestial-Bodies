@@ -46,6 +46,7 @@ class SelectImageForm(FlaskForm):
 def get_file(filename):
     return send_from_directory(app.config['UPLOADED_PHOTOS_DEST'], filename)
 
+
 @app.route("/upload")
 def upload():
         form = SelectImageForm()
@@ -65,6 +66,15 @@ def upload():
 
 @app.route("/", methods=["GET", "POST"])
 def index():
+    folder_path = os.path.join(APP_ROOT, 'uploads')
+
+    # Get a list of all the files in the folder
+    files = os.listdir(folder_path)
+    if len(files) != 0:
+    # Loop through the list of files and remove each one
+        for file_name in files:
+            file_path = os.path.join(folder_path, file_name)
+            os.remove(file_path)
     # image in memory will be used on reload
     global imageBytes
     form = SelectImageForm()
@@ -84,16 +94,30 @@ def about():
 
 @app.route("/result")
 def result():
-    cwd = os.path.join(app.root_path, "..", "hub", "examples", "image_retraining")
+    try:
+        test_upload_dir = '/Users/kevinmathew/Documents/UoL CNN/app/uploads'
 
+        # Get a list of all the files in the directory
+        files = os.listdir(test_upload_dir)
+
+        # Get the first file in the directory
+        first_file = files[0]
+        # Open the file in binary mode and read its contents
+        with open(os.path.join(test_upload_dir, first_file), 'rb') as f:
+            image_data = f.read()
+
+        # Convert the binary data to a base64 string
+        base64_data = b64encode(image_data).decode('utf-8')
+    except Exception as e:
+        return render_template("error.html", detail=str(e))
+    
+    cwd = os.path.join(app.root_path, "..", "hub", "examples", "image_retraining")
+    
     celestial_object, labels = predict_answer()
     title, properties, description = wiki(celestial_object, cwd)
-    print(celestial_object)
-    print(labels)
-    print(title)
-    print(properties)
     return render_template(
         "result.html",
+        image = base64_data,
         labels=labels,
         title=title,
         description=description,
@@ -108,50 +132,58 @@ def redirectToGoogle():
 
 @app.route("/predict")
 def predict_answer():
-    import matplotlib.image as mpimg
-    # Read Test Images Dir and their labels
     test_upload_dir = '/Users/kevinmathew/Documents/UoL CNN/app/uploads'
-    image_list = ['asteroids', 'earth','elliptical', 'jupiter', 'mars', 'mercury','moon', 'neptune', 'saturn', 'spiral', 'uranus', 'venus']
-
-    # Get a list of all the files in the directory
     files = os.listdir(test_upload_dir)
 
     # Get the first file in the directory
     first_file = files[0]
-    print("first_file")
     first_file_path = os.path.join(test_upload_dir, first_file)
+    if first_file:
+        import matplotlib.image as mpimg
+        # Read Test Images Dir and their labels
+        test_upload_dir = '/Users/kevinmathew/Documents/UoL CNN/app/uploads'
+        image_list = ['asteroids', 'earth','elliptical', 'jupiter', 'mars', 'mercury','moon', 'neptune', 'saturn', 'spiral', 'uranus', 'venus']
 
-    img_width=256; img_height=256
- 
-    img = image.load_img(first_file_path, target_size=(img_width, img_height))
-    x = image.img_to_array(img)
-    x = np.expand_dims(x, axis=0)
-    x = x / 255.0   # normalize pixel values to [0, 1]
-    print("Pre processign done")
-    model = keras.models.load_model('/Users/kevinmathew/Documents/UoL CNN/hub/examples/image_retraining/CNN_Model.h5')
-    # Make the prediction
-    predictions = model.predict(x)
+        # Get a list of all the files in the directory
+        files = os.listdir(test_upload_dir)
 
-    # Print the predicted class label and probability
-    class_names = ['asteroids', 'earth', 'jupiter', 'mars', 'moon', 'neptune', 'saturn', 'spiral', 'uranus', 'venus']
-    predicted_class_index = np.argmax(predictions)
-    print(predictions)
-    predicted_class_label = class_names[predicted_class_index]
-    predicted_probability = predictions[0][predicted_class_index]
-    print(f"The predicted class is {predicted_class_label} with probability {predicted_probability:.2f}")
+        # Get the first file in the directory
+        first_file = files[0]
+        first_file_path = os.path.join(test_upload_dir, first_file)
 
-    cwd = os.path.join(app.root_path, "..", "hub", "examples", "image_retraining")
-    title, properties, description = wiki(predicted_class_label, cwd)
-    top_k = predictions[0].argsort()[-len(predictions[0]) :][::-1]
+        img_width=256; img_height=256
+    
+        img = image.load_img(first_file_path, target_size=(img_width, img_height))
+        x = image.img_to_array(img)
+        x = np.expand_dims(x, axis=0)
+        x = x / 255.0   # normalize pixel values to [0, 1]
+        model = keras.models.load_model('/Users/kevinmathew/Documents/UoL CNN/hub/examples/image_retraining/CNN_Model.h5')
+        # Make the prediction
+        predictions = model.predict(x)
 
-    label_lines = [
-        line.rstrip() for line in tf.io.gfile.GFile(cwd + "/retrained_labels.txt")
-    ]
-    labels_and_scores = [
-            (label_lines[node_id], predictions[0][node_id]) for node_id in top_k
+        # Print the predicted class label and probability
+        class_names = ['asteroids', 'earth','elliptical', 'jupiter', 'mars', 'mercury', 'moon', 'neptune', 'saturn', 'spiral', 'uranus', 'venus']
+        predicted_class_index = np.argmax(predictions)
+        print(predictions)
+        print(predicted_class_index)
+        predicted_class_label = class_names[predicted_class_index]
+        predicted_probability = predictions[0][predicted_class_index]
+        print(f"The predicted class is {predicted_class_label} with probability {predicted_probability:.2f}")
+
+        cwd = os.path.join(app.root_path, "..", "hub", "examples", "image_retraining")
+        title, properties, description = wiki(predicted_class_label, cwd)
+        top_k = predictions[0].argsort()[-len(predictions[0]) :][::-1]
+
+        predictions_100 = [[p * 100 for p in row] for row in predictions]
+        predictions = dict(zip(class_names, predictions_100[0]))
+        label_lines = [
+            line.rstrip() for line in tf.io.gfile.GFile(cwd + "/retrained_labels.txt")
         ]
-    print("results page")
-    return predicted_class_label, labels_and_scores
+        labels_and_scores = list(predictions.items())
+        # Print the dictionary
+        print(predictions)
+        print("results page")
+        return predicted_class_label, labels_and_scores
 
 
 # return title, statistics and summary
